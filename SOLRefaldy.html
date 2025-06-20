@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Simulasi Penjadwalan CPU</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .header-info {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header-info h1 {
+      margin-bottom: 5px;
+      font-size: 24px;
+      color: #1d3557;
+    }
+
+    .header-info h3 {
+      font-weight: normal;
+      color: #333;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #457b9d;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+
+    input:focus, select:focus {
+      border-color: #457b9d;
+      outline: none;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 16px;
+      background-color: #457b9d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      background-color: #1d3557;
+    }
+
+    .primary {
+      width: 100%;
+    }
+
+    .controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .algo-select select,
+    .algo-select input {
+      margin-top: 10px;
+    }
+
+    #processList ul {
+      padding-left: 20px;
+    }
+
+    .result {
+      background-color: #e0f7fa;
+      border: 1px solid #00acc1;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .result-table th, .result-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .result-table th {
+      background-color: #457b9d;
+      color: white;
+    }
+
+    .result-summary {
+      margin-top: 12px;
+      font-weight: bold;
+      color: #1d3557;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header-info">
+      <h1>Refaldy Putra Apriansyah</h1>
+      <h3>NIM: 11240036 - TI A</h3>
+    </div>
+
+    <h2>🖥️ Simulasi Penjadwalan CPU</h2>
+
+    <form id="processForm" class="card" onsubmit="return false;">
+      <h3>Tambah Proses</h3>
+      <div class="form-group">
+        <label for="arrivalTime">Waktu Kedatangan</label>
+        <input type="number" id="arrivalTime" placeholder="cth: 0" required min="0" />
+      </div>
+
+      <div class="form-group">
+        <label for="burstTime">Waktu Proses</label>
+        <input type="number" id="burstTime" placeholder="cth: 4" required min="1" />
+      </div>
+
+      <button type="button" class="btn" onclick="addProcess()">+ Tambah Proses</button>
+    </form>
+
+    <div class="card algo-select">
+      <h3>Pilih Algoritma Penjadwalan</h3>
+      <select id="algorithm" onchange="toggleQuantumInput()">
+        <option value="fifo">FIFO</option>
+        <option value="sjf">SJF (Non-preemptive)</option>
+        <option value="srf">SRF (Preemptive SJF)</option>
+        <option value="rr">Round Robin</option>
+      </select>
+      <input type="number" id="quantum" placeholder="Quantum (untuk RR)" style="display:none;" min="1" />
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" onclick="calculate()">Hitung</button>
+    </div>
+
+    <div id="processList" class="card">
+      <h3>Daftar Proses</h3>
+      <ul id="processUl"></ul>
+    </div>
+
+    <div id="result" class="card result"></div>
+  </div>
+
+  <script>
+    let processes = [];
+
+    function addProcess() {
+      const arrival = parseInt(document.getElementById('arrivalTime').value);
+      const burst = parseInt(document.getElementById('burstTime').value);
+
+      if (isNaN(arrival) || isNaN(burst) || arrival < 0 || burst <= 0) {
+        alert("Input tidak valid!");
+        return;
+      }
+
+      const process = {
+        id: 'P' + (processes.length + 1),
+        arrivalTime: arrival,
+        burstTime: burst,
+        remainingTime: burst
+      };
+      processes.push(process);
+      renderProcessList();
+      document.getElementById('arrivalTime').value = '';
+      document.getElementById('burstTime').value = '';
+    }
+
+    function renderProcessList() {
+      const ul = document.getElementById('processUl');
+      ul.innerHTML = '';
+      processes.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = `${p.id} - Kedatangan: ${p.arrivalTime}, Burst: ${p.burstTime}`;
+        ul.appendChild(li);
+      });
+    }
+
+    function toggleQuantumInput() {
+      const algo = document.getElementById('algorithm').value;
+      document.getElementById('quantum').style.display = (algo === 'rr') ? 'block' : 'none';
+    }
+
+    function calculate() {
+      const algo = document.getElementById('algorithm').value;
+      const resultDiv = document.getElementById('result');
+
+      if (processes.length === 0) {
+        resultDiv.innerHTML = '⚠️ Tambahkan proses terlebih dahulu!';
+        return;
+      }
+
+      let proc = processes.map(p => ({ ...p }));
+
+      let res;
+      if (algo === 'fifo') {
+        res = calculateFIFO(proc);
+      } else if (algo === 'sjf') {
+        res = calculateSJF(proc);
+      } else if (algo === 'srf') {
+        res = calculateSRF(proc);
+      } else if (algo === 'rr') {
+        const quantum = parseInt(document.getElementById('quantum').value);
+        if (isNaN(quantum) || quantum <= 0) {
+          alert('Quantum tidak valid!');
+          return;
+        }
+        res = calculateRR(proc, quantum);
+      }
+
+      resultDiv.innerHTML = formatResult(res);
+    }
+
+    function calculateFIFO(proc) {
+      proc.sort((a, b) => a.arrivalTime - b.arrivalTime);
+      let currentTime = 0;
+      proc.forEach(p => {
+        if (currentTime < p.arrivalTime) currentTime = p.arrivalTime;
+        p.startTime = currentTime;
+        p.completionTime = currentTime + p.burstTime;
+        p.turnaroundTime = p.completionTime - p.arrivalTime;
+        p.waitingTime = p.turnaroundTime - p.burstTime;
+        currentTime = p.completionTime;
+      });
+      return proc;
+    }
+
+    function calculateSJF(proc) {
+      proc.sort((a, b) => a.arrivalTime - b.arrivalTime);
+      let n = proc.length, completed = 0, currentTime = 0;
+      let isCompleted = new Array(n).fill(false);
+
+      while (completed < n) {
+        let idx = -1, minBT = Infinity;
+        for (let i = 0; i < n; i++) {
+          if (proc[i].arrivalTime <= currentTime && !isCompleted[i] && proc[i].burstTime < minBT) {
+            minBT = proc[i].burstTime;
+            idx = i;
+          }
+        }
+        if (idx === -1) {
+          currentTime++;
+          continue;
+        }
+        proc[idx].startTime = currentTime;
+        proc[idx].completionTime = currentTime + proc[idx].burstTime;
+        proc[idx].turnaroundTime = proc[idx].completionTime - proc[idx].arrivalTime;
+        proc[idx].waitingTime = proc[idx].turnaroundTime - proc[idx].burstTime;
+        currentTime = proc[idx].completionTime;
+        isCompleted[idx] = true;
+        completed++;
+      }
+      return proc;
+    }
+
+    function calculateSRF(proc) {
+      let n = proc.length, completed = 0, currentTime = 0;
+      let remainingTime = proc.map(p => p.burstTime);
+      let isCompleted = new Array(n).fill(false);
+      let startTime = new Array(n).fill(-1);
+      let completionTime = new Array(n).fill(0);
+
+      while (completed < n) {
+        let idx = -1, minRT = Infinity;
+        for (let i = 0; i < n; i++) {
+          if (proc[i].arrivalTime <= currentTime && !isCompleted[i] && remainingTime[i] < minRT && remainingTime[i] > 0) {
+            minRT = remainingTime[i];
+            idx = i;
+          }
+        }
+        if (idx === -1) {
+          currentTime++;
+          continue;
+        }
+
+        if (startTime[idx] === -1) {
+          startTime[idx] = currentTime;
+        }
+
+        remainingTime[idx]--;
+        currentTime++;
+
+        if (remainingTime[idx] === 0) {
+          completionTime[idx] = currentTime;
+          isCompleted[idx] = true;
+          completed++;
+        }
+      }
+
+      for (let i = 0; i < n; i++) {
+        proc[i].startTime = startTime[i];
+        proc[i].completionTime = completionTime[i];
+        proc[i].turnaroundTime = completionTime[i] - proc[i].arrivalTime;
+        proc[i].waitingTime = proc[i].turnaroundTime - proc[i].burstTime;
+      }
+
+      return proc;
+    }
+
+    function calculateRR(proc, quantum) {
+      let n = proc.length, queue = [], currentTime = 0, completed = 0;
+      let remainingTime = proc.map(p => p.burstTime);
+      let isAdded = new Array(n).fill(false);
+      let startTime = new Array(n).fill(-1);
+      let completionTime = new Array(n).fill(0);
+
+      while (completed < n) {
+        for (let i = 0; i < n; i++) {
+          if (proc[i].arrivalTime <= currentTime && !isAdded[i]) {
+            queue.push(i);
+            isAdded[i] = true;
+          }
+        }
+
+        if (queue.length === 0) {
+          currentTime++;
+          continue;
+        }
+
+        let idx = queue.shift();
+
+        if (startTime[idx] === -1) {
+          startTime[idx] = currentTime;
+        }
+
+        let execTime = Math.min(quantum, remainingTime[idx]);
+        remainingTime[idx] -= execTime;
+        currentTime += execTime;
+
+        for (let i = 0; i < n; i++) {
+          if (proc[i].arrivalTime > currentTime - execTime && proc[i].arrivalTime <= currentTime && !isAdded[i]) {
+            queue.push(i);
+            isAdded[i] = true;
+          }
+        }
+
+        if (remainingTime[idx] > 0) {
+          queue.push(idx);
+        } else {
+          completionTime[idx] = currentTime;
+          completed++;
+        }
+      }
+
+      for (let i = 0; i < n; i++) {
+        proc[i].startTime = startTime[i];
+        proc[i].completionTime = completionTime[i];
+        proc[i].turnaroundTime = completionTime[i] - proc[i].arrivalTime;
+        proc[i].waitingTime = proc[i].turnaroundTime - proc[i].burstTime;
+      }
+
+      return proc;
+    }
+
+    function formatResult(proc) {
+      let html = `<table class="result-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Kedatangan</th>
+            <th>Burst</th>
+            <th>Start</th>
+            <th>Selesai</th>
+            <th>Turnaround</th>
+            <th>Waiting</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      proc.forEach(p => {
+        html += `<tr>
+          <td>${p.id}</td>
+          <td>${p.arrivalTime}</td>
+          <td>${p.burstTime}</td>
+          <td>${p.startTime}</td>
+          <td>${p.completionTime}</td>
+          <td>${p.turnaroundTime}</td>
+          <td>${p.waitingTime}</td>
+        </tr>`;
+      });
+      html += `</tbody></table>`;
+
+      const avgTurnaround = (proc.reduce((a, b) => a + b.turnaroundTime, 0) / proc.length).toFixed(2);
+      const avgWaiting = (proc.reduce((a, b) => a + b.waitingTime, 0) / proc.length).toFixed(2);
+
+      html += `<div class="result-summary">
+        Rata-rata Turnaround Time: ${avgTurnaround}<br>
+        Rata-rata Waiting Time: ${avgWaiting}
+      </div>`;
+
+      return html;
+    }
+  </script>
+</body>
+</html>
